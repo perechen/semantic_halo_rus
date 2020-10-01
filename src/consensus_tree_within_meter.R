@@ -1,7 +1,7 @@
 
 library(tidyverse)
 #calculations
-library(proxy)
+library(philentropy)
 #dendrograms
 library(ape)
 library(phylogram)
@@ -17,7 +17,7 @@ consensus_tree_within_meter = function(x, # unique poems
                                min_meter_count, 
                                max_meter_count=Inf,
                                replace=F,
-                               distance="Kullback",
+                               distance="JSD",
                                clust_method="ward.D2") {
   # init variables
   for_consensus =  vector('list', n_trees)  
@@ -31,7 +31,7 @@ consensus_tree_within_meter = function(x, # unique poems
                                     n_samples=n_samples, 
                                     meter_count_limit=min_meter_count,
                                     max_meter_count=max_meter_count,
-                                    replace=F)  %>% 
+                                    replace=replace)  %>% 
       mutate(tree = t)
     
     all_samples = all_samples %>% bind_rows(sample_for_trees)
@@ -49,18 +49,19 @@ consensus_tree_within_meter = function(x, # unique poems
     
     wide = all_samples_gamma[[i]]  %>% 
       group_by(sample,topic)  %>% 
-      summarise(m_gamma = mean(gamma))  %>% 
+      summarise(m_gamma = mean(gamma), .groups="keep")  %>% 
       spread(key=topic, value=m_gamma)
     
     names = wide  %>% select(sample)  %>% pull()
     
     wide_matrix = wide[,-1]  %>% as.matrix()
-    rownames(wide_matrix) = names
-    
+      
     for_consensus[[i]] = wide_matrix  %>% 
       # scale()  %>% 
-      dist(method="Kullback") %>%
-      hclust(method="ward.D2") %>%
+      JSD(unit="log2") %>% # calc JSD
+      `rownames<-`(names) %>% # reset rownames
+      as.dist() %>% # to dist object
+      hclust(method=clust_method) %>%
       as.phylo()
     
     

@@ -11,7 +11,9 @@ test_clusters_halo = function(poem_list,
                               rep=FALSE,
                               random_probabilities=FALSE,
                               random_labels=FALSE,
-                              random_clusters=FALSE) {
+                              random_clusters=FALSE,
+                              clust_method="complete",
+                              dist="JSD") {
 
 p_df = c()
 for (p in p_size) {
@@ -32,7 +34,7 @@ for (i in 1:iterations) {
     #    filter(meter!="Ан3")  %>% 
     group_by(topic, sample)  %>% 
     
-    summarise(m_gamma = mean(gamma))  %>% 
+    summarise(m_gamma = mean(gamma), .groups="keep")  %>% 
     spread(key = topic, value=m_gamma)  
   
   
@@ -58,9 +60,12 @@ for (i in 1:iterations) {
   ##calculate distances & build clusterization
   
   
-  tree = wide_matrix  %>% 
-    dist(method="Kullback")  %>% 
-    hclust(method="ward.D2") 
+  tree = wide_matrix  %>%
+      # scale()  %>% 
+      JSD(unit="log2") %>% # calc JSD
+      `rownames<-`(names) %>% # reset rownames
+      as.dist() %>% # to dist object
+      hclust(method=clust_method)
   
   classes = cutree(tree,k=n_clusters)
   expected = str_replace_all(names, "_\\d", "")

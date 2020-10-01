@@ -10,9 +10,11 @@ test_clusters_families = function(n_sample_families = 50, # how many times sampl
                                   min_meter_count = 200, # limit for availiable poems per meter
                                   n_poems_per_sample=100, # how many poems in sample
                                   samples=1, # number of samples per meter
-                                  random_probabilities=F,
+                                  random_probabilities=F,# assign topic probablities for each poems randomly 
                                   random_labels=F,
-                                  random_clusters=F) { # assign topic probablities for each poems randomly 
+                                  random_clusters=F,
+                                  clust_method="complete",
+                                  dist="JSD") { 
 
 purity_mean = vector(length=n_sample_families)
 ari_mean = vector(length=n_sample_families)
@@ -50,7 +52,7 @@ for (m in 1:n_sample_families) {
       #    filter(meter!="Ан3")  %>% 
       group_by(topic, meter)  %>% 
       
-      summarise(m_gamma = mean(gamma))  %>% 
+      summarise(m_gamma = mean(gamma), .groups="keep")  %>% 
       spread(key = topic, value=m_gamma)  
     
     
@@ -75,8 +77,11 @@ for (m in 1:n_sample_families) {
     
     
     tree = wide_matrix  %>% 
-      dist(method="Kullback")  %>% 
-      hclust(method="ward.D2") 
+      # scale()  %>% 
+      JSD(unit="log2") %>% # calc JSD
+      `rownames<-`(names) %>% # reset rownames
+      as.dist() %>% # to dist object
+      hclust(method=clust_method)
     
     classes = cutree(tree,k=n_clusters)
     expected = str_replace_all(names, "^(.*?)\\d.*", "\\1")  %>% str_replace("Явольн", "Я")

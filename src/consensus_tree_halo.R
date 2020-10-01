@@ -1,7 +1,7 @@
 
 library(tidyverse)
 #calculations
-library(proxy)
+library(philentropy)
 #dendrograms
 library(ape)
 library(phylogram)
@@ -16,7 +16,8 @@ consensus_tree_halo = function(x, # unique poems
                             min_meter_count,
                             max_meter_count=Inf,
                             distance,
-                            clust_method="ward.D2",
+                            clust_method="complete",
+                            dist="JSD", # not anchored to the code yet, only for informational purposes
                             rep=T) {
   # init variables
   for_consensus =  vector('list', n_samples)  
@@ -39,7 +40,7 @@ consensus_tree_halo = function(x, # unique poems
     
     wide = samples_for_trees[[i]]  %>% 
       group_by(topic, meter)  %>% 
-      summarise(m_gamma = mean(gamma))  %>% 
+      summarise(m_gamma = mean(gamma), .groups="keep")  %>% 
       spread(key=topic, value=m_gamma)
     
     names = wide  %>% select(meter)  %>% pull()
@@ -47,7 +48,11 @@ consensus_tree_halo = function(x, # unique poems
     wide_matrix = wide[,-1]  %>% as.matrix()
     rownames(wide_matrix) = names
     
-    for_consensus[[i]] = dist(wide_matrix, method=distance) %>%
+    for_consensus[[i]] = wide_matrix %>%
+      # scale()  %>% 
+      JSD(unit="log2") %>% # calc JSD
+      `rownames<-`(names) %>% # reset rownames
+      as.dist() %>% # to dist object
       hclust(method=clust_method) %>%
       as.phylo()
     
